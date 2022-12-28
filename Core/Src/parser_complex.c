@@ -1,0 +1,79 @@
+/*
+ * parser_complex.c
+ *
+ *  Created on: 4 cze 2022
+ *      Author: Adrian
+ */
+
+#include "main.h"
+#include "ring_buffer.h"
+#include "utils.h"
+#include "parser_complex.h"
+#include "string.h"
+#include "stdio.h"
+#include "stdlib.h"
+
+
+void Parser_TakeLine(RingBuffer_t *Buff, uint8_t *Destination)
+{
+	  uint8_t i = 0;
+	  uint8_t tmp = 0;
+	do
+	{
+		 Ring_Buffer_Read(Buff, &tmp);
+		 if(tmp == ENDLINE)
+			{
+			 Destination[i] = 0;
+			}
+		else
+			{
+			Destination[i] = tmp;
+			}
+
+			i++;
+
+	} while(tmp != ENDLINE);
+}
+
+//CSQ
+
+
+static void Parser_ParseCSQ(void)
+{
+	char * ParsePointer = strtok(NULL, "\r");
+
+	SignalQuality = atof(ParsePointer);
+}
+
+
+void Parser_parse(uint8_t * DataToParse)
+{
+	if(strcmp("OK", (char*)DataToParse) == 0)
+	{
+		ReceivedState = 1;
+	}
+	else
+	{
+		char * ParsePointer = strtok((char*)DataToParse, " ");
+
+		if(strcmp("+CSQ:", ParsePointer) == 0)
+		{
+			Parser_ParseCSQ();
+		}
+	}
+
+
+
+//	  if(strcmp("LED_ON", (char*)DataToParse) == 0)
+//	  {
+//		  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+//		  UartLog("led_on\n\r");
+//	  }
+//	  else if(strcmp("LED_OFF", (char*)DataToParse) == 0)
+//	  {
+//	  	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+//	  	UartLog("led_off\n\r");
+//	  }
+
+
+}
