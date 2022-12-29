@@ -20,12 +20,12 @@ void UartSend(char * Message)
 {
 	ReceivedState = 0;
 	HAL_UART_Transmit_IT(&huart1, (uint8_t*) Message, strlen(Message));
-	Uart1isBusy = 1;
+	*Uart1isBusyPtr = 1;
 }
 
 void UartSendWoRxCtrl(char * Message)
 {
 	HAL_UART_Transmit_IT(&huart1, (uint8_t*) Message, strlen(Message));
-	Uart1isBusy = 1;
+	*Uart1isBusyPtr = 1;
 }
 

@@ -36,7 +36,13 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
+typedef enum
+{
+	Config=0,
+	Control,
+	SMSMsgWrite,
+	Idle
+}SMSUartTxState_t;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/

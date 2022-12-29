@@ -13,7 +13,7 @@ void UartSend(char * Message);
 void UartSendWoRxCtrl(char * Message);
 
 extern uint8_t ReceivedState;
-extern uint8_t Uart1isBusy;
+extern uint8_t *Uart1isBusyPtr;
 
 
 #endif /* INC_UTILS_H_ */

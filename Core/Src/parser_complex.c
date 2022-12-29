@@ -92,6 +92,10 @@ void Parser_parse(uint8_t * DataToParse)
 		{
 			Parser_ParseCCLK();
 		}
+		else if(strcmp("Test2", ParsePointer) == 0)
+		{
+			SMSUartTxState = SMSMsgWrite;
+		}
 	}
 
 

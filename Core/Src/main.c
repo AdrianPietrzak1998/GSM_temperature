@@ -37,6 +37,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define INQUIRY_TIME 750
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -50,8 +51,12 @@
 RingBuffer_t ReceiveBuffer;
 uint8_t ReceiveTmp;
 uint8_t LineCounter = 0;
-uint8_t ReceivedData[32];
+uint8_t ReceivedData[255];
+
 uint8_t Uart1isBusy = 0;
+uint8_t *Uart1isBusyPtr = &Uart1isBusy;
+
+uint32_t LastTickForSim800;
 
 double SignalQuality;
 uint8_t ReceivedState;
@@ -62,14 +67,10 @@ uint8_t year, month, day, hour, minute, second;
 
 const char ctrlZ = 26;
 
-enum SMSUartTxState
-{
-	Config=0,
-	Control,
-	SMSMsgWrite,
-	Idle
-}SMSUartTxState;
+SMSUartTxState_t SMSUartTxState;
 
+uint8_t timPeriodCounter = 0;
+uint16_t inquiryTimeVar = INQUIRY_TIME;
 
 char SMSMessage[140] = "TEest.asdqwejkshda";
 /* USER CODE END PV */
@@ -116,6 +117,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART1_UART_Init();
   MX_TIM4_Init();
+  MX_TIM3_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
@@ -125,8 +127,10 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  HAL_TIM_Base_Start_IT(&htim4);
-
+//  HAL_TIM_Base_Start_IT(&htim4);
+  HAL_TIM_Base_Start_IT(&htim3);
+  SMSUartTxState = Config;
+  LastTickForSim800 = HAL_GetTick();
   while (1)
   {
 
@@ -139,7 +143,7 @@ int main(void)
 		  Parser_parse(ReceivedData);
 	  }
 
-	  if(ReceivedState)
+	  if(Uart1isBusy)
 	  {
 		  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, RESET);
 	  }
@@ -147,6 +151,90 @@ int main(void)
 	  {
 		  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, SET);
 	  }
+
+
+	  if(Uart1isBusy == 0 && HAL_GetTick() - LastTickForSim800 >= inquiryTimeVar)
+	  	{LastTickForSim800 = HAL_GetTick();
+	  		if(SMSUartTxState == Control)
+	  		{
+	  			static uint8_t TaskState = 0;
+
+	  			switch(TaskState)
+	  			{
+	  			case 0:
+	  				UartSend("AT+CSQ\r\n");
+	  				TaskState = 1;
+	  				break;
+	  			case 1:
+	  				UartSend("AT+CREG?\r\n");
+	  				TaskState = 2;
+	  				break;
+	  			case 2:
+	  				UartSend("AT+CCLK?\r\n");
+	  				TaskState = 0;
+	  				SMSUartTxState = Control;
+	  				break;
+	  			}
+	  		}
+	  		else if(SMSUartTxState == SMSMsgWrite)
+	  		{
+	  			static uint8_t TaskState = 0;
+	  			switch(TaskState)
+	  			{
+	  			case 0:
+	  				UartSendWoRxCtrl("AT+CMGS=\"+48885447216\"\r\n");
+	  				inquiryTimeVar = 2000;
+	  				TaskState = 1;
+	  				break;
+	  			case 1:
+	  				HAL_UART_Transmit_IT(&huart1, (uint8_t*) SMSMessage, strlen(SMSMessage));
+	  				*Uart1isBusyPtr = 1;
+	  				TaskState = 2;
+	  				break;
+	  			case 2:
+	  				HAL_UART_Transmit_IT(&huart1, (uint8_t*) &ctrlZ, 1);
+	  				*Uart1isBusyPtr = 1;
+	  				TaskState = 3;
+	  				SMSUartTxState = Control;
+	  				break;
+	  			case 3:
+	  				inquiryTimeVar = INQUIRY_TIME;
+	  				TaskState = 0;
+	  				break;
+	  			}
+	  		}
+	  		else if(SMSUartTxState == Config)
+	  		{
+	  			static uint8_t TaskState = 0;
+	  			switch(TaskState)
+	  			{
+	  			case 0:
+	  				UartSend("ATE0\r\n");
+	  				TaskState = 1;
+	  				break;
+	  			case 1:
+	  				UartSend("AT+CMGF=1\r\n");
+	  				TaskState = 2;
+	  				break;
+	  			case 2:
+	  				UartSend("AT+CLTS=1\r\n");
+	  				TaskState = 3;
+	  				break;
+	  			case 3:
+	  				UartSend("AT+CNMI=2,2,0,0,0\r\n");
+	  				TaskState = 4;
+	  				break;
+	  			case 4:
+	  				UartSend("AT&W\r\n");
+	  				TaskState = 0;
+	  				SMSUartTxState = Control;
+	  				break;
+
+	  			}
+	  		}
+	  	}
+
+
 
 
     /* USER CODE END WHILE */
@@ -206,6 +294,9 @@ static void MX_NVIC_Init(void)
   /* USART1_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(USART1_IRQn);
+  /* TIM3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(TIM3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(TIM3_IRQn);
 }
 
 /* USER CODE BEGIN 4 */
@@ -230,75 +321,93 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
-Uart1isBusy = 0;
+	*Uart1isBusyPtr = 0;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	if(htim->Instance == TIM4)
+//	if(htim->Instance == TIM4 && Uart1isBusy == 0)
+//	{
+//		if(SMSUartTxState == Control)
+//		{
+//			static uint8_t TaskState = 0;
+//
+//			switch(TaskState)
+//			{
+//			case 0:
+//				UartSend("AT+CSQ\r\n");
+//				TaskState = 1;
+//				break;
+//			case 1:
+//				UartSend("AT+CREG?\r\n");
+//				TaskState = 2;
+//				break;
+//			case 2:
+//				UartSend("AT+CCLK?\r\n");
+//				TaskState = 0;
+//			}
+//		}
+//		else if(SMSUartTxState == SMSMsgWrite)
+//		{
+//			static uint8_t TaskState = 0;
+//			switch(TaskState)
+//			{
+//			case 0:
+//				UartSendWoRxCtrl("AT+CMGS=\"+48885447216\"\r\n");
+//				TaskState = 1;
+//				break;
+//			case 1:
+//				HAL_UART_Transmit_IT(&huart1, (uint8_t*) SMSMessage, strlen(SMSMessage));
+//				*Uart1isBusyPtr = 1;
+//				TaskState = 2;
+//				break;
+//			case 2:
+//				HAL_UART_Transmit_IT(&huart1, (uint8_t*) &ctrlZ, 1);
+//				TaskState = 0;
+//				SMSUartTxState = Control;
+//				break;
+//				}
+//		}
+//		else if(SMSUartTxState == Config)
+//		{
+//			static uint8_t TaskState = 0;
+//			switch(TaskState)
+//			{
+//			case 0:
+//				UartSend("ATE0\r\n");
+//				TaskState = 1;
+//				break;
+//			case 1:
+//				UartSend("AT+CMGF=1\r\n");
+//				TaskState = 2;
+//				break;
+//			case 2:
+//				UartSend("AT+CLTS=1\r\n");
+//				TaskState = 3;
+//				break;
+//			case 3:
+//				UartSend("AT+CNMI=2,2,0,0,0\r\n");
+//				TaskState = 4;
+//				break;
+//			case 4:
+//				UartSend("AT&W\r\n");
+//				TaskState = 0;
+//				SMSUartTxState = Control;
+//				break;
+//
+//			}
+//		}
+//	}
+	if(htim->Instance == TIM3)
 	{
-		if(SMSUartTxState == Control)
-		{
-			static uint8_t TaskState = 0;
+		//Period elapsed 128,57s
+		timPeriodCounter++;
 
-			switch(TaskState)
-			{
-			case 0:
-				UartSend("AT+CSQ\r\n");
-				TaskState = 1;
-				break;
-			case 1:
-				UartSend("AT+CREG?\r\n");
-				TaskState = 2;
-				break;
-			case 2:
-				UartSend("AT+CCLK?\r\n");
-				TaskState = 0;
-			}
-		}
-		else if(SMSUartTxState == SMSMsgWrite)
-		{
-			static uint8_t TaskState = 0;
-			switch(TaskState)
-			{
-			case 0:
-				UartSendWoRxCtrl("AT+CMGS=\"+48885447216\"\r\n");
-				TaskState = 1;
-				break;
-			case 1:
-				HAL_UART_Transmit_IT(&huart1, (uint8_t*) SMSMessage, strlen(SMSMessage));
-				TaskState = 2;
-				break;
-			case 2:
-				HAL_UART_Transmit_IT(&huart1, (uint8_t*) &ctrlZ, 1);
-				TaskState = 0;
-				SMSUartTxState = Control;
-				break;
-				}
-		}
-		else if(SMSUartTxState == Config)
-		{
-			static uint8_t TaskState = 0;
-			switch(TaskState)
-			{
-			case 0:
-				UartSend("ATE0\r\n");
-				TaskState = 1;
-				break;
-			case 1:
-				UartSend("AT+CMGF=1\r\n");
-				TaskState = 2;
-				break;
-			case 2:
-				UartSend("AT+CLTS=1\r\n");
-				TaskState = 3;
-			case 3:
-				UartSend("AT&W\r\n");
-				TaskState = 0;
-				SMSUartTxState = Control;
-				break;
 
-			}
+
+		if(timPeriodCounter == 28)
+		{
+			timPeriodCounter = 0;
 		}
 	}
 }
