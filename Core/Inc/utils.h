@@ -10,7 +10,10 @@
 
 void UartLog(char * Message);
 void UartSend(char * Message);
+void UartSendWoRxCtrl(char * Message);
 
 extern uint8_t ReceivedState;
+extern uint8_t Uart1isBusy;
+
 
 #endif /* INC_UTILS_H_ */

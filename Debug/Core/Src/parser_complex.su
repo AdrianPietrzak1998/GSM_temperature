@@ -1,3 +1,5 @@
 ../Core/Src/parser_complex.c:17:6:Parser_TakeLine	24	static
 ../Core/Src/parser_complex.c:41:13:Parser_ParseCSQ	16	static
-../Core/Src/parser_complex.c:49:6:Parser_parse	24	static
+../Core/Src/parser_complex.c:48:13:Parser_ParseCREG	16	static
+../Core/Src/parser_complex.c:56:13:Parser_ParseCCLK	16	static
+../Core/Src/parser_complex.c:73:6:Parser_parse	24	static

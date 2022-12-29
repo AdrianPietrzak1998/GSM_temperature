@@ -40,9 +40,33 @@ void Parser_TakeLine(RingBuffer_t *Buff, uint8_t *Destination)
 
 static void Parser_ParseCSQ(void)
 {
-	char * ParsePointer = strtok(NULL, "\r");
+	char * ParsePointer = strtok(NULL, ",");
 
 	SignalQuality = atof(ParsePointer);
+}
+
+static void Parser_ParseCREG(void)
+{
+	char * ParsePointer = strtok(NULL, ",");
+	CRegN = atoi(ParsePointer);
+	ParsePointer = strtok(NULL, ",");
+	CRegStat = atoi(ParsePointer);
+}
+
+static void Parser_ParseCCLK(void)
+{
+	char * ParsePointer = strtok(NULL, "/");
+	year = atoi(ParsePointer+1);
+	ParsePointer = strtok(NULL, "/");
+	month = atoi(ParsePointer);
+	ParsePointer = strtok(NULL, ",");
+	day = atoi(ParsePointer);
+	ParsePointer = strtok(NULL, ":");
+	hour = atoi(ParsePointer);
+	ParsePointer = strtok(NULL, ":");
+	minute = atoi(ParsePointer);
+	ParsePointer = strtok(NULL, "+");
+	second = atoi(ParsePointer);
 }
 
 
@@ -59,6 +83,14 @@ void Parser_parse(uint8_t * DataToParse)
 		if(strcmp("+CSQ:", ParsePointer) == 0)
 		{
 			Parser_ParseCSQ();
+		}
+		else if(strcmp("+CREG:", ParsePointer) == 0)
+		{
+			Parser_ParseCREG();
+		}
+		else if(strcmp("+CCLK:", ParsePointer) == 0)
+		{
+			Parser_ParseCCLK();
 		}
 	}
 

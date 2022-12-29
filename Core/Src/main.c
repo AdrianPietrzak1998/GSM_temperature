@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -25,8 +26,8 @@
 /* USER CODE BEGIN Includes */
 #include "ring_buffer.h"
 #include "string.h"
-#include "utils.h"
 #include "parser_complex.h"
+#include "utils.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,13 +51,32 @@ RingBuffer_t ReceiveBuffer;
 uint8_t ReceiveTmp;
 uint8_t LineCounter = 0;
 uint8_t ReceivedData[32];
+uint8_t Uart1isBusy = 0;
 
-float SignalQuality;
+double SignalQuality;
 uint8_t ReceivedState;
+uint8_t CRegN, CRegStat;
+
+//time variables
+uint8_t year, month, day, hour, minute, second;
+
+const char ctrlZ = 26;
+
+enum SMSUartTxState
+{
+	Config=0,
+	Control,
+	SMSMsgWrite,
+	Idle
+}SMSUartTxState;
+
+
+char SMSMessage[140] = "TEest.asdqwejkshda";
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+static void MX_NVIC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -95,18 +115,20 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART1_UART_Init();
+  MX_TIM4_Init();
+
+  /* Initialize interrupts */
+  MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
   HAL_UART_Receive_IT(&huart1, &ReceiveTmp, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  UartSend("ATE0\r\n");
-  HAL_Delay(100);
+  HAL_TIM_Base_Start_IT(&htim4);
+
   while (1)
   {
-	  UartSend("AT+CSQ\r\n");
-	  HAL_Delay(1000);
 
 	  if(LineCounter)
 	  {
@@ -115,6 +137,15 @@ int main(void)
 		  LineCounter--;
 
 		  Parser_parse(ReceivedData);
+	  }
+
+	  if(ReceivedState)
+	  {
+		  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, RESET);
+	  }
+	  else
+	  {
+		  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, SET);
 	  }
 
 
@@ -140,7 +171,9 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -150,7 +183,7 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
@@ -159,6 +192,20 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief NVIC Configuration.
+  * @retval None
+  */
+static void MX_NVIC_Init(void)
+{
+  /* TIM4_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(TIM4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(TIM4_IRQn);
+  /* USART1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(USART1_IRQn);
 }
 
 /* USER CODE BEGIN 4 */
@@ -179,6 +226,81 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		HAL_UART_Receive_IT(&huart1, &ReceiveTmp, 1);
 	}
 
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+Uart1isBusy = 0;
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if(htim->Instance == TIM4)
+	{
+		if(SMSUartTxState == Control)
+		{
+			static uint8_t TaskState = 0;
+
+			switch(TaskState)
+			{
+			case 0:
+				UartSend("AT+CSQ\r\n");
+				TaskState = 1;
+				break;
+			case 1:
+				UartSend("AT+CREG?\r\n");
+				TaskState = 2;
+				break;
+			case 2:
+				UartSend("AT+CCLK?\r\n");
+				TaskState = 0;
+			}
+		}
+		else if(SMSUartTxState == SMSMsgWrite)
+		{
+			static uint8_t TaskState = 0;
+			switch(TaskState)
+			{
+			case 0:
+				UartSendWoRxCtrl("AT+CMGS=\"+48885447216\"\r\n");
+				TaskState = 1;
+				break;
+			case 1:
+				HAL_UART_Transmit_IT(&huart1, (uint8_t*) SMSMessage, strlen(SMSMessage));
+				TaskState = 2;
+				break;
+			case 2:
+				HAL_UART_Transmit_IT(&huart1, (uint8_t*) &ctrlZ, 1);
+				TaskState = 0;
+				SMSUartTxState = Control;
+				break;
+				}
+		}
+		else if(SMSUartTxState == Config)
+		{
+			static uint8_t TaskState = 0;
+			switch(TaskState)
+			{
+			case 0:
+				UartSend("ATE0\r\n");
+				TaskState = 1;
+				break;
+			case 1:
+				UartSend("AT+CMGF=1\r\n");
+				TaskState = 2;
+				break;
+			case 2:
+				UartSend("AT+CLTS=1\r\n");
+				TaskState = 3;
+			case 3:
+				UartSend("AT&W\r\n");
+				TaskState = 0;
+				SMSUartTxState = Control;
+				break;
+
+			}
+		}
+	}
 }
 /* USER CODE END 4 */
 
