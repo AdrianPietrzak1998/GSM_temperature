@@ -73,6 +73,11 @@ uint8_t timPeriodCounter = 0;
 uint16_t inquiryTimeVar = INQUIRY_TIME;
 
 char SMSMessage[140] = "TEest.asdqwejkshda";
+char FTPMessageBox1[1330];
+char FTPMessageBox2[1330];
+uint8_t FTPMessageBoxRecordSwitch = 1;
+
+float temperature;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -128,11 +133,12 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 //  HAL_TIM_Base_Start_IT(&htim4);
-  HAL_TIM_Base_Start_IT(&htim3);
+//  HAL_TIM_Base_Start_IT(&htim3);
   SMSUartTxState = Config;
   LastTickForSim800 = HAL_GetTick();
   while (1)
   {
+	  temperature = -19.5;
 
 	  if(LineCounter)
 	  {
@@ -232,6 +238,111 @@ int main(void)
 
 	  			}
 	  		}
+	  		else if(SMSUartTxState == FTPMsgWrite)
+	  		{
+	  			static uint8_t TaskState = 0;
+  				char ATcmdFtp[64];
+  				uint16_t MsgLen;
+	  			inquiryTimeVar = INQUIRY_TIME;
+	  			switch(TaskState)
+	  			{
+	  			case 0:
+	  				UartSend("AT+SAPBR=3,1,\"Contype\",\"GPRS\"\r\n");
+	  				TaskState = 1;
+	  				break;
+	  			case 1:
+	  				UartSend("AT+SAPBR=3,1,\"APN\",\"plus\"\r\n");
+	  				TaskState = 2;
+	  				break;
+	  			case 2:
+	  				UartSend("AT+SAPBR=1,1\r\n");
+	  				inquiryTimeVar = 5000;
+	  				TaskState = 3;
+	  				break;
+	  			case 3:
+	  				if(ReceivedState == 1)
+	  				{
+	  					TaskState = 4;
+	  				}
+	  				else
+	  				{
+	  					TaskState = 0;
+	  					UartSend("AT+SAPBR=0,1\r\n");
+	  				}
+	  				break;
+	  			case 4:
+	  				UartSend("AT+SAPBR=2,1\r\n");
+	  				inquiryTimeVar  =INQUIRY_TIME;
+	  				TaskState = 5;
+	  				break;
+	  			case 5:
+	  				UartSend("AT+FTPCID=1\r\n");
+	  				TaskState = 6;
+	  				break;
+	  			case 6:
+	  				UartSend("AT+FTPSERV=\"www.mkwk019.cba.pl\"\r\n");
+	  				TaskState = 7;
+	  				break;
+	  			case 7:
+	  				UartSend("AT+FTPUN=\"hostv1@donakoemb.cba.pl\"\r\n");
+	  				TaskState = 8;
+	  				break;
+	  			case 8:
+	  				UartSend("AT+FTPPW=\"FalconEye2022\"\r\n");
+	  				TaskState = 9;
+	  				break;
+	  			case 9:
+	  				sprintf(ATcmdFtp, "AT+FTPPUTNAME=\"884%.2u%.2u%.2u%.2u%.2u%.2u.txt\"\r\n", year, month, day, hour, minute, second);
+	  				UartSend(ATcmdFtp);
+	  				TaskState = 10;
+	  				break;
+	  			case 10:
+	  				UartSend("AT+FTPPUTPATH=\"/\"\r\n");
+	  				TaskState = 11;
+	  				break;
+	  			case 11:
+	  				UartSend("AT+FTPPUT=1\r\n");
+	  				inquiryTimeVar = 4000;
+	  				TaskState = 12;
+	  				break;
+	  			case 12:
+	  				if(FTPMessageBoxRecordSwitch == 2)
+	  				{
+	  					MsgLen = strlen(FTPMessageBox1);
+	  				}
+	  				else if(FTPMessageBoxRecordSwitch == 1)
+	  				{
+	  					MsgLen = strlen(FTPMessageBox2);
+	  				}
+	  				sprintf(ATcmdFtp,"AT+FTPPUT=2,%u\r\n", MsgLen);
+	  				UartSendWoRxCtrl(ATcmdFtp);
+					TaskState = 13;
+					break;
+	  			case 13:
+	  				if(FTPMessageBoxRecordSwitch == 2)
+	  				{
+	  					UartSendWoRxCtrl(FTPMessageBox1);
+	  				}
+	  				else if(FTPMessageBoxRecordSwitch == 1)
+	  				{
+	  					UartSendWoRxCtrl(FTPMessageBox2);
+	  				}
+	  				TaskState = 14;
+	  				break;
+	  			case 14:
+	  				UartSend("AT+FTPPUT=2,0\r\n");
+	  				TaskState = 15;
+	  				break;
+	  			case 15:
+	  				UartSend("AT+SAPBR=0,1\r\n");
+	  				TaskState = 0;
+	  				SMSUartTxState = Control;
+	  				inquiryTimeVar = INQUIRY_TIME;
+	  				break;
+
+	  			}
+
+	  		}
 	  	}
 
 
@@ -326,87 +437,39 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-//	if(htim->Instance == TIM4 && Uart1isBusy == 0)
-//	{
-//		if(SMSUartTxState == Control)
-//		{
-//			static uint8_t TaskState = 0;
-//
-//			switch(TaskState)
-//			{
-//			case 0:
-//				UartSend("AT+CSQ\r\n");
-//				TaskState = 1;
-//				break;
-//			case 1:
-//				UartSend("AT+CREG?\r\n");
-//				TaskState = 2;
-//				break;
-//			case 2:
-//				UartSend("AT+CCLK?\r\n");
-//				TaskState = 0;
-//			}
-//		}
-//		else if(SMSUartTxState == SMSMsgWrite)
-//		{
-//			static uint8_t TaskState = 0;
-//			switch(TaskState)
-//			{
-//			case 0:
-//				UartSendWoRxCtrl("AT+CMGS=\"+48885447216\"\r\n");
-//				TaskState = 1;
-//				break;
-//			case 1:
-//				HAL_UART_Transmit_IT(&huart1, (uint8_t*) SMSMessage, strlen(SMSMessage));
-//				*Uart1isBusyPtr = 1;
-//				TaskState = 2;
-//				break;
-//			case 2:
-//				HAL_UART_Transmit_IT(&huart1, (uint8_t*) &ctrlZ, 1);
-//				TaskState = 0;
-//				SMSUartTxState = Control;
-//				break;
-//				}
-//		}
-//		else if(SMSUartTxState == Config)
-//		{
-//			static uint8_t TaskState = 0;
-//			switch(TaskState)
-//			{
-//			case 0:
-//				UartSend("ATE0\r\n");
-//				TaskState = 1;
-//				break;
-//			case 1:
-//				UartSend("AT+CMGF=1\r\n");
-//				TaskState = 2;
-//				break;
-//			case 2:
-//				UartSend("AT+CLTS=1\r\n");
-//				TaskState = 3;
-//				break;
-//			case 3:
-//				UartSend("AT+CNMI=2,2,0,0,0\r\n");
-//				TaskState = 4;
-//				break;
-//			case 4:
-//				UartSend("AT&W\r\n");
-//				TaskState = 0;
-//				SMSUartTxState = Control;
-//				break;
-//
-//			}
-//		}
-//	}
 	if(htim->Instance == TIM3)
-	{
-		//Period elapsed 128,57s
+	{   //Period elapsed 128,57s
 		timPeriodCounter++;
-
-
-
-		if(timPeriodCounter == 28)
+		char OneSample[32];
+		uint8_t helpvarlen1, helpvarlen2; //do usuniecia
+		sprintf(OneSample, "%.2u/%.2u/%.2u,%.2u:%.2u:%.2u,%.1f\n", year, month, day, hour, minute, second, temperature);
+		if(FTPMessageBoxRecordSwitch == 1)
 		{
+			strcat(FTPMessageBox1, OneSample);
+		}
+		else if(FTPMessageBoxRecordSwitch == 2)
+		{
+			strcat(FTPMessageBox2, OneSample);
+		}
+
+		helpvarlen1 = strlen(FTPMessageBox1);
+		helpvarlen2 = strlen(FTPMessageBox2);
+
+		if(timPeriodCounter == 15)
+		{
+			SMSUartTxState = FTPMsgWrite;
+
+			if(FTPMessageBoxRecordSwitch == 1)
+			{
+				FTPMessageBox2[0] = '\0';
+				FTPMessageBoxRecordSwitch = 2;
+			}
+			else if(FTPMessageBoxRecordSwitch == 2)
+			{
+				FTPMessageBox1[0] = '\0';
+				FTPMessageBoxRecordSwitch = 1;
+			}
+
 			timPeriodCounter = 0;
 		}
 	}

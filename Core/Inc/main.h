@@ -41,6 +41,7 @@ typedef enum
 	Config=0,
 	Control,
 	SMSMsgWrite,
+	FTPMsgWrite,
 	Idle
 }SMSUartTxState_t;
 /* USER CODE END ET */
