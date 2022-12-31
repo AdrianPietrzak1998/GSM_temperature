@@ -68,6 +68,8 @@ void Error_Handler(void);
 #define LED_GPIO_Port GPIOC
 #define RESET_GSM_Pin GPIO_PIN_13
 #define RESET_GSM_GPIO_Port GPIOA
+#define DS18B20_Pin GPIO_PIN_7
+#define DS18B20_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

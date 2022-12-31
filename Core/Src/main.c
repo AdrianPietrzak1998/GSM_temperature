@@ -24,6 +24,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "stdio.h"
+#include "math.h"
+#include "onewire.h"
+#include "ds18b20.h"
 #include "ring_buffer.h"
 #include "string.h"
 #include "parser_complex.h"
@@ -65,6 +69,10 @@ uint8_t CRegN, CRegStat;
 //time variables
 uint8_t year, month, day, hour, minute, second;
 
+int32_t temperature, temperatureValid;
+int16_t temperatureDecimal;
+uint8_t temperatureFractional;
+
 const char ctrlZ = 26;
 
 SMSUartTxState_t SMSUartTxState;
@@ -77,7 +85,7 @@ char FTPMessageBox1[1330];
 char FTPMessageBox2[1330];
 uint8_t FTPMessageBoxRecordSwitch = 1;
 
-float temperature;
+uint32_t Tick_temp_measure;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -132,13 +140,24 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-//  HAL_TIM_Base_Start_IT(&htim4);
-//  HAL_TIM_Base_Start_IT(&htim3);
+  HAL_TIM_Base_Start_IT(&htim3);
   SMSUartTxState = Config;
   LastTickForSim800 = HAL_GetTick();
+  Tick_temp_measure = HAL_GetTick();
+  DS18B20_Init(DS18B20_Resolution_12bits);
+
   while (1)
   {
-	  temperature = -19.5;
+	  if(HAL_GetTick() - Tick_temp_measure >= 500u)
+	  {
+	  DS18B20_ReadAll();
+	  DS18B20_StartAll();
+	  DS18B20_GetTemperature(0, &temperature);
+	  temperatureValid = (temperature * 100)/16;
+	  temperatureDecimal = temperatureValid / 100;
+	  temperatureFractional = temperatureValid - (temperatureDecimal * 100);
+	  Tick_temp_measure = HAL_GetTick();
+	  }
 
 	  if(LineCounter)
 	  {
@@ -149,14 +168,9 @@ int main(void)
 		  Parser_parse(ReceivedData);
 	  }
 
-	  if(Uart1isBusy)
-	  {
-		  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, RESET);
-	  }
-	  else
-	  {
-		  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, SET);
-	  }
+
+		  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, ReceivedState);
+
 
 
 	  if(Uart1isBusy == 0 && HAL_GetTick() - LastTickForSim800 >= inquiryTimeVar)
@@ -367,12 +381,13 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL8;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -384,10 +399,10 @@ void SystemClock_Config(void)
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -399,15 +414,9 @@ void SystemClock_Config(void)
   */
 static void MX_NVIC_Init(void)
 {
-  /* TIM4_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(TIM4_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(TIM4_IRQn);
   /* USART1_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(USART1_IRQn);
-  /* TIM3_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(TIM3_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(TIM3_IRQn);
 }
 
 /* USER CODE BEGIN 4 */
@@ -441,8 +450,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{   //Period elapsed 128,57s
 		timPeriodCounter++;
 		char OneSample[32];
-		uint8_t helpvarlen1, helpvarlen2; //do usuniecia
-		sprintf(OneSample, "%.2u/%.2u/%.2u,%.2u:%.2u:%.2u,%.1f\n", year, month, day, hour, minute, second, temperature);
+		sprintf(OneSample, "%.2u/%.2u/%.2u,%.2u:%.2u:%.2u,%i.%.2u\n", year, month, day, hour, minute, second, temperatureDecimal, temperatureFractional);
 		if(FTPMessageBoxRecordSwitch == 1)
 		{
 			strcat(FTPMessageBox1, OneSample);
@@ -452,10 +460,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			strcat(FTPMessageBox2, OneSample);
 		}
 
-		helpvarlen1 = strlen(FTPMessageBox1);
-		helpvarlen2 = strlen(FTPMessageBox2);
 
-		if(timPeriodCounter == 15)
+		if(timPeriodCounter == 42)
 		{
 			SMSUartTxState = FTPMsgWrite;
 
