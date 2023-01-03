@@ -42,15 +42,15 @@ static void Parser_ParseCSQ(void)
 {
 	char * ParsePointer = strtok(NULL, ",");
 
-	SignalQuality = atof(ParsePointer);
+	GSM.SignalQuality = atof(ParsePointer);
 }
 
 static void Parser_ParseCREG(void)
 {
 	char * ParsePointer = strtok(NULL, ",");
-	CRegN = atoi(ParsePointer);
+	GSM.CRegN = atoi(ParsePointer);
 	ParsePointer = strtok(NULL, ",");
-	CRegStat = atoi(ParsePointer);
+	GSM.CRegStat = atoi(ParsePointer);
 }
 
 static void Parser_ParseCCLK(void)
@@ -72,9 +72,10 @@ static void Parser_ParseCCLK(void)
 
 void Parser_parse(uint8_t * DataToParse)
 {
+
 	if(strcmp("OK", (char*)DataToParse) == 0)
 	{
-		ReceivedState = 1;
+		GSM.ReceivedState = 1;
 	}
 	else
 	{

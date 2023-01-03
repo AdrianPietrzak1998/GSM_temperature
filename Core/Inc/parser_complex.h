@@ -11,11 +11,15 @@
 #define ENDLINE '\n'
 
 extern double SignalQuality;
-extern uint8_t ReceivedState;
-extern uint8_t CRegN, CRegStat;
+//extern uint8_t ReceivedState;
+//extern uint8_t CRegN, CRegStat;
+
 extern uint8_t year, month, day, hour, minute, second;
 
+
+
 extern SMSUartTxState_t SMSUartTxState;
+extern GSM_t GSM;
 
 void Parser_TakeLine(RingBuffer_t *Buff, uint8_t *Destination);
 void Parser_parse(uint8_t * DataToParse);

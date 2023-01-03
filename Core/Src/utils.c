@@ -18,7 +18,7 @@ void UartLog(char * Message)
 
 void UartSend(char * Message)
 {
-	ReceivedState = 0;
+	GSM.ReceivedState = 0;
 	HAL_UART_Transmit_IT(&huart1, (uint8_t*) Message, strlen(Message));
 	*Uart1isBusyPtr = 1;
 }
@@ -29,3 +29,21 @@ void UartSendWoRxCtrl(char * Message)
 	*Uart1isBusyPtr = 1;
 }
 
+void Temperature100ToString(int32_t temp, char *StringBuf)
+{
+	int16_t Decimal;
+	uint16_t Fractial;
+
+	Decimal = temp/100;
+
+	if(temp>=0)
+	{
+		Fractial = temp - Decimal * 100;
+	}
+	else
+	{
+		Fractial = (temp * -1) - ((Decimal * -1) * 100);
+	}
+
+	sprintf(StringBuf, "%.2i.%.2u", Decimal, Fractial);
+}

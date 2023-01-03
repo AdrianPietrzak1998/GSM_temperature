@@ -11,8 +11,11 @@
 void UartLog(char * Message);
 void UartSend(char * Message);
 void UartSendWoRxCtrl(char * Message);
+void Temperature100ToString(int32_t temp, char *StringBuf);
 
-extern uint8_t ReceivedState;
+extern GSM_t GSM;
+
+//extern uint8_t ReceivedState;
 extern uint8_t *Uart1isBusyPtr;
 
 

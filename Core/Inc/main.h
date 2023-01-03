@@ -44,6 +44,14 @@ typedef enum
 	FTPMsgWrite,
 	Idle
 }SMSUartTxState_t;
+
+
+typedef struct {
+	double SignalQuality;
+	uint8_t ReceivedState;
+	uint8_t CRegN, CRegStat;
+}GSM_t;
+
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
