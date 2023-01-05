@@ -6,6 +6,7 @@
  */
 
 #include "main.h"
+#include <stdio.h>
 #include "usart.h"
 #include "string.h"
 #include "utils.h"

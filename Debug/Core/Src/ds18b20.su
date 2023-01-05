@@ -1,6 +1,6 @@
-../Core/Src/ds18b20.c:23:19:ds18b20_read_address	32	static
 ../Core/Src/ds18b20.c:43:26:send_cmd	24	static
-../Core/Src/ds18b20.c:61:19:ds18b20_start_measure	16	static
-../Core/Src/ds18b20.c:66:26:ds18b20_read_scratchpad	32	static
-../Core/Src/ds18b20.c:84:7:ds18b20_get_temp	32	static
-../Core/Src/ds18b20.c:97:9:ds18b20_get_temp_wo_fp	32	static
+../Core/Src/ds18b20.c:66:26:ds18b20_read_scratchpad	16	static
+../Core/Src/ds18b20.c:23:19:ds18b20_read_address	16	static
+../Core/Src/ds18b20.c:61:19:ds18b20_start_measure	8	static
+../Core/Src/ds18b20.c:84:7:ds18b20_get_temp	24	static
+../Core/Src/ds18b20.c:97:9:ds18b20_get_temp_wo_fp	24	static

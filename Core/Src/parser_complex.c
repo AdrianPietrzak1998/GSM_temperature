@@ -12,6 +12,7 @@
 #include "string.h"
 #include "stdio.h"
 #include "stdlib.h"
+#include "FLASH_PAGE_F1.h"
 
 
 void Parser_TakeLine(RingBuffer_t *Buff, uint8_t *Destination)
@@ -77,6 +78,10 @@ void Parser_parse(uint8_t * DataToParse)
 	{
 		GSM.ReceivedState = 1;
 	}
+	else if(strcmp("save\r", (char*)DataToParse) == 0)
+	{
+		Flash_Write_Data(0x0801FC00, GSM.FlashBuff, 128);
+	}
 	else
 	{
 		char * ParsePointer = strtok((char*)DataToParse, " ");
@@ -96,6 +101,31 @@ void Parser_parse(uint8_t * DataToParse)
 		else if(strcmp("Test2", ParsePointer) == 0)
 		{
 			SMSUartTxState = SMSMsgWrite;
+		}
+		else if(strcmp("login:", ParsePointer) == 0)
+		{
+			ParsePointer = strtok(NULL, "\r");
+			strcpy(GSM.ConfigFlash.login, ParsePointer);
+		}
+		else if(strcmp("password:", ParsePointer) == 0)
+		{
+			ParsePointer = strtok(NULL, "\r");
+			strcpy(GSM.ConfigFlash.password, ParsePointer);
+		}
+		else if(strcmp("server:", ParsePointer) == 0)
+		{
+			ParsePointer = strtok(NULL, "\r");
+			strcpy(GSM.ConfigFlash.server, ParsePointer);
+		}
+		else if(strcmp("path:", ParsePointer) == 0)
+		{
+			ParsePointer = strtok(NULL, "\r");
+			strcpy(GSM.ConfigFlash.path, ParsePointer);
+		}
+		else if(strcmp("device:", ParsePointer) == 0)
+		{
+			ParsePointer = strtok(NULL, "\r");
+			strcpy(GSM.ConfigFlash.deviceNumber, ParsePointer);
 		}
 	}
 

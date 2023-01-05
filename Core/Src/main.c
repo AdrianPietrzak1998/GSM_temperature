@@ -20,6 +20,7 @@
 #include "main.h"
 #include "tim.h"
 #include "usart.h"
+#include "usb_device.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -31,6 +32,7 @@
 #include "math.h"
 #include "ds18b20.h"
 #include "string.h"
+#include "usbd_cdc_if.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -56,6 +58,11 @@ uint8_t ReceiveTmp;
 uint8_t LineCounter = 0;
 uint8_t ReceivedData[255];
 
+RingBuffer_t USBConfBuffer;
+uint8_t USBReceiveTmp;
+uint8_t USBLineCounter = 0;
+//uint8_t USBReceivedData [255];
+
 uint8_t Uart1isBusy = 0;
 uint8_t *Uart1isBusyPtr = &Uart1isBusy;
 
@@ -64,7 +71,7 @@ uint32_t LastTickTempMeasure;
 
 
 
-
+char testlogin[50];
 
 
 
@@ -89,6 +96,8 @@ char FTPMessageBox2[1330];
 uint8_t FTPMessageBoxRecordSwitch = 1;
 
 uint8_t ds_address[DS18B20_ROM_CODE_SIZE];
+
+volatile uint8_t USBtoParseBuf[512]; ///test
 
 /* USER CODE END PV */
 
@@ -136,6 +145,7 @@ int main(void)
   MX_TIM4_Init();
   MX_TIM3_Init();
   MX_USART2_UART_Init();
+  MX_USB_DEVICE_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
@@ -149,11 +159,22 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  HAL_TIM_Base_Start_IT(&htim3);
   SMSUartTxState = Config;
   LastTickForSim800 = HAL_GetTick();
   LastTickTempMeasure = HAL_GetTick();
 
+  memcpy(GSM.FlashBuff, 0x0801FC00, 128*4);
+
+//  sprintf(GSM.ConfigFlash.server, "www.mkwk019.cba.pl");
+//  sprintf(GSM.ConfigFlash.login, "hostv1@donakoemb.cba.pl");
+//  sprintf(GSM.ConfigFlash.password, "FalconEye2022");
+//  sprintf(GSM.ConfigFlash.path, "/czujnik/");
+
+  ///Test zapisu do flash
+
+//  Flash_Write_Data(0x0801FC00, GSM.FlashBuff, 128);
+
+  HAL_TIM_Base_Start_IT(&htim3);
 
   while (1)
   {
@@ -178,6 +199,15 @@ int main(void)
 		  Parser_TakeLine(&ReceiveBuffer, ReceivedData);
 
 		  LineCounter--;
+
+		  Parser_parse(ReceivedData);
+	  }
+
+	  if(USBLineCounter)
+	  {
+		  Parser_TakeLine(&USBConfBuffer, ReceivedData);
+
+		  USBLineCounter--;
 
 		  Parser_parse(ReceivedData);
 	  }
@@ -207,6 +237,7 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -217,7 +248,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL8;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -236,6 +267,12 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
+  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+  {
+    Error_Handler();
+  }
 }
 
 /**
@@ -247,6 +284,9 @@ static void MX_NVIC_Init(void)
   /* USART1_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(USART1_IRQn);
+  /* USB_LP_CAN1_RX0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(USB_LP_CAN1_RX0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(USB_LP_CAN1_RX0_IRQn);
 }
 
 /* USER CODE BEGIN 4 */
@@ -397,7 +437,7 @@ void CommStateMachineTask(void)
 	  		{
 	  			static uint8_t TaskState = 0;
 				uint16_t MsgLen;
-				static char ATcmdFtp[64];
+				static char ATcmdFtp[128];
 	  			inquiryTimeVar = INQUIRY_TIME;
 	  			switch(TaskState)
 	  			{
@@ -427,7 +467,7 @@ void CommStateMachineTask(void)
 	  				break;
 	  			case 4:
 	  				UartSend("AT+SAPBR=2,1\r\n");
-	  				inquiryTimeVar  =INQUIRY_TIME;
+	  				inquiryTimeVar = INQUIRY_TIME;
 	  				TaskState = 5;
 	  				break;
 	  			case 5:
@@ -435,25 +475,30 @@ void CommStateMachineTask(void)
 	  				TaskState = 6;
 	  				break;
 	  			case 6:
-	  				UartSend("AT+FTPSERV=\"www.mkwk019.cba.pl\"\r\n");
+	  				sprintf(ATcmdFtp, "AT+FTPSERV=\"%s\"\r\n", GSM.ConfigFlash.server);
+	  				UartSend(ATcmdFtp);
 	  				TaskState = 7;
 	  				break;
 	  			case 7:
-	  				UartSend("AT+FTPUN=\"hostv1@donakoemb.cba.pl\"\r\n");
+	  				sprintf(ATcmdFtp, "AT+FTPUN=\"%s\"\r\n", GSM.ConfigFlash.login);
+	  				UartSend(ATcmdFtp);
 	  				TaskState = 8;
 	  				break;
 	  			case 8:
-	  				UartSend("AT+FTPPW=\"FalconEye2022\"\r\n");
+//	  				UartSend("AT+FTPPW=\"FalconEye2022\"\r\n");
+	  				sprintf(ATcmdFtp, "AT+FTPPW=\"%s\"\r\n", GSM.ConfigFlash.password);
+	  				UartSend(ATcmdFtp);
 	  				TaskState = 9;
 	  				break;
 	  			case 9:
-	  				ATcmdFtp[0] = '\0';
-	  				sprintf(ATcmdFtp, "AT+FTPPUTNAME=\"884%.2u%.2u%.2u%.2u%.2u%.2u.txt\"\r\n", year, month, day, hour, minute, second);
+	  				sprintf(ATcmdFtp, "AT+FTPPUTNAME=\"%s%.2u%.2u%.2u%.2u%.2u%.2u.txt\"\r\n",GSM.ConfigFlash.deviceNumber, year, month, day, hour, minute, second);
 	  				UartSend(ATcmdFtp);
 	  				TaskState = 10;
 	  				break;
 	  			case 10:
-	  				UartSend("AT+FTPPUTPATH=\"/czujnik/\"\r\n");
+//	  				UartSend("AT+FTPPUTPATH=\"/czujnik/\"\r\n");
+	  				sprintf(ATcmdFtp, "AT+FTPPUTPATH=\"%s\"\r\n", GSM.ConfigFlash.path);
+	  				UartSend(ATcmdFtp);
 	  				TaskState = 11;
 	  				break;
 	  			case 11:
@@ -470,7 +515,6 @@ void CommStateMachineTask(void)
 	  				{
 	  					MsgLen = strlen(FTPMessageBox2);
 	  				}
-	  				ATcmdFtp[0] = '\0';
 	  				sprintf(ATcmdFtp,"AT+FTPPUT=2,%u\r\n", MsgLen);
 	  				UartSendWoRxCtrl(ATcmdFtp);
 					TaskState = 13;
@@ -501,6 +545,28 @@ void CommStateMachineTask(void)
 
 	  		}
 	  	}
+}
+
+void CDC_ReveiveCallback(uint8_t *Buffer, uint8_t Length)
+{
+	if(Length > 0)
+		{
+			volatile uint8_t i = 0;
+			while(i < Length)
+			{
+					if (RB_OK == Ring_Buffer_Write(&USBConfBuffer, Buffer[i]))
+					{
+						if(Buffer[i] == ENDLINE)
+						{
+							USBLineCounter++;
+						}
+
+				i++;
+				}
+			}
+		}
+
+
 }
 /* USER CODE END 4 */
 

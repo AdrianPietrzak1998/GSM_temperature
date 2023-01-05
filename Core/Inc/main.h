@@ -50,6 +50,20 @@ typedef struct {
 	double SignalQuality;
 	uint8_t ReceivedState;
 	uint8_t CRegN, CRegStat;
+	union
+	{
+		uint32_t FlashBuff[128];
+		struct ConfigFlash
+		{
+			char login[30];
+			char password[30];
+			char server[50];
+			char path[50];
+			char number1[13];
+			char number2[13];
+			char deviceNumber[5];
+		}ConfigFlash;
+	};
 }GSM_t;
 
 /* USER CODE END ET */

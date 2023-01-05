@@ -1,4 +1,4 @@
-../Core/Src/utils.c:14:6:UartLog	16	static
-../Core/Src/utils.c:19:6:UartSend	16	static
-../Core/Src/utils.c:26:6:UartSendWoRxCtrl	16	static
-../Core/Src/utils.c:32:6:Temperature100ToString	24	static
+../Core/Src/utils.c:15:6:UartLog	8	static
+../Core/Src/utils.c:20:6:UartSend	8	static
+../Core/Src/utils.c:27:6:UartSendWoRxCtrl	8	static
+../Core/Src/utils.c:33:6:Temperature100ToString	8	static
