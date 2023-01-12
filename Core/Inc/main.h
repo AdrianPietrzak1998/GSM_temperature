@@ -38,7 +38,9 @@ extern "C" {
 /* USER CODE BEGIN ET */
 typedef enum
 {
-	Config=0,
+	Reset=0,
+	Start,
+	Config,
 	Control,
 	SMSMsgWrite,
 	FTPMsgWrite,
@@ -50,6 +52,7 @@ typedef struct {
 	double SignalQuality;
 	uint8_t ReceivedState;
 	uint8_t CRegN, CRegStat;
+
 	union
 	{
 		uint32_t FlashBuff[128];
@@ -59,11 +62,13 @@ typedef struct {
 			char password[30];
 			char server[50];
 			char path[50];
-			char number1[13];
-			char number2[13];
+			char number1[16];
+			char number2[16];
 			char deviceNumber[5];
 		}ConfigFlash;
 	};
+	uint8_t ErrorCounter;
+	uint32_t LastTickReceive;
 }GSM_t;
 
 /* USER CODE END ET */
@@ -88,8 +93,8 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define LED_Pin GPIO_PIN_13
 #define LED_GPIO_Port GPIOC
-#define RESET_GSM_Pin GPIO_PIN_13
-#define RESET_GSM_GPIO_Port GPIOA
+#define GSM_RESET_Pin GPIO_PIN_12
+#define GSM_RESET_GPIO_Port GPIOB
 #define DS18B20_Pin GPIO_PIN_7
 #define DS18B20_GPIO_Port GPIOB
 

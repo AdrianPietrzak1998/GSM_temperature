@@ -42,7 +42,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define INQUIRY_TIME 750
+#define INQUIRY_TIME 250
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -90,14 +90,14 @@ GSM_t GSM;
 uint8_t timPeriodCounter = 0;
 uint16_t inquiryTimeVar = INQUIRY_TIME;
 
-char SMSMessage[140] = "TEest.asdqwejkshda";
+char SMSMessage[140];
 char FTPMessageBox1[1330];
 char FTPMessageBox2[1330];
 uint8_t FTPMessageBoxRecordSwitch = 1;
 
 uint8_t ds_address[DS18B20_ROM_CODE_SIZE];
 
-volatile uint8_t USBtoParseBuf[512]; ///test
+//volatile uint8_t USBtoParseBuf[512];
 
 /* USER CODE END PV */
 
@@ -159,7 +159,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  SMSUartTxState = Config;
+  SMSUartTxState = Reset;
   LastTickForSim800 = HAL_GetTick();
   LastTickTempMeasure = HAL_GetTick();
 
@@ -213,10 +213,22 @@ int main(void)
 	  }
 
 
-		  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GSM.ReceivedState);
+	  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GSM.ReceivedState);
 
 
-		  CommStateMachineTask();
+	  CommStateMachineTask();
+
+	  if(GSM.ErrorCounter > 10)
+	  {
+		  SMSUartTxState = Reset;
+		  GSM.ErrorCounter = 0;
+	  }
+
+	  if(SMSUartTxState != Idle && HAL_GetTick() - GSM.LastTickReceive >= 30000)
+	  {
+		  SMSUartTxState = Reset;
+		  GSM.LastTickReceive = HAL_GetTick();
+	  }
 
 
 
@@ -294,6 +306,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if(huart->Instance == USART1)
 	{
+		GSM.LastTickReceive = HAL_GetTick();
 		if(ReceiveTmp != 0xd)
 		{
 			if (RB_OK == Ring_Buffer_Write(&ReceiveBuffer, ReceiveTmp))
@@ -372,19 +385,71 @@ void CommStateMachineTask(void)
 	  				TaskState = 2;
 	  				break;
 	  			case 2:
+	  				 UartSend("AT+CMGL=\"REC UNREAD\",0\r\n");
+	  				 TaskState = 3;
+	  				 break;
+	  			case 3:
 	  				UartSend("AT+CCLK?\r\n");
 	  				TaskState = 0;
 	  				SMSUartTxState = Control;
 	  				break;
 	  			}
 	  		}
-	  		else if(SMSUartTxState == SMSMsgWrite)
+	  		else if(SMSUartTxState == Reset)
 	  		{
 	  			static uint8_t TaskState = 0;
 	  			switch(TaskState)
 	  			{
 	  			case 0:
-	  				UartSendWoRxCtrl("AT+CMGS=\"+48885447216\"\r\n");
+	  				inquiryTimeVar = 100;
+	  				HAL_GPIO_WritePin(GSM_RESET_GPIO_Port, GSM_RESET_Pin, RESET);
+	  				TaskState = 1;
+	  				break;
+	  			case 1:
+	  				inquiryTimeVar = 5000;
+	  				HAL_GPIO_WritePin(GSM_RESET_GPIO_Port, GSM_RESET_Pin, SET);
+	  				TaskState = 2;
+	  				break;
+	  			case 2:
+	  				inquiryTimeVar = INQUIRY_TIME;
+	  				TaskState = 2;
+	  				SMSUartTxState = Config;
+	  				break;
+	  			}
+	  		}
+	  		else if(SMSUartTxState == Start)
+	  		{
+	  			inquiryTimeVar = 2000;
+	  			static uint8_t TaskState = 0;
+	  			switch(TaskState)
+	  			{
+	  			case 0:
+	  				UartSend("AT+CREG?\r\n");
+	  				TaskState = 1;
+	  				break;
+	  			case 1:
+	  				if(GSM.CRegStat == 1)
+	  				{
+	  					inquiryTimeVar = INQUIRY_TIME;
+	  					TaskState = 0;
+	  					SMSUartTxState = Control;
+	  				}
+	  				else
+	  				{
+	  					TaskState = 0;
+	  				}
+	  			}
+	  		}
+	  		else if(SMSUartTxState == SMSMsgWrite)
+	  		{
+	  			static uint8_t TaskState = 0;
+	  			static char ATcmdSMS[128];
+	  			switch(TaskState)
+	  			{
+	  			case 0:
+	  				sprintf(ATcmdSMS, "AT+CMGS=\"%s\"\r\n", GSM.ConfigFlash.number2);
+//	  				UartSendWoRxCtrl("AT+CMGS=\"+48885447216\"\r\n");
+	  				UartSendWoRxCtrl(ATcmdSMS);
 	  				inquiryTimeVar = 2000;
 	  				TaskState = 1;
 	  				break;
@@ -397,11 +462,11 @@ void CommStateMachineTask(void)
 	  				HAL_UART_Transmit_IT(&huart1, (uint8_t*) &ctrlZ, 1);
 	  				*Uart1isBusyPtr = 1;
 	  				TaskState = 3;
-	  				SMSUartTxState = Control;
 	  				break;
 	  			case 3:
 	  				inquiryTimeVar = INQUIRY_TIME;
 	  				TaskState = 0;
+	  				SMSUartTxState = Control;
 	  				break;
 	  			}
 	  		}
@@ -427,9 +492,13 @@ void CommStateMachineTask(void)
 	  				TaskState = 4;
 	  				break;
 	  			case 4:
+	  				UartSend("AT+CIURC=0\r\n");
+	  				TaskState = 5;
+	  				break;
+	  			case 5:
 	  				UartSend("AT&W\r\n");
 	  				TaskState = 0;
-	  				SMSUartTxState = Control;
+	  				SMSUartTxState = Start;
 	  				break;
 	  			}
 	  		}
@@ -485,7 +554,6 @@ void CommStateMachineTask(void)
 	  				TaskState = 8;
 	  				break;
 	  			case 8:
-//	  				UartSend("AT+FTPPW=\"FalconEye2022\"\r\n");
 	  				sprintf(ATcmdFtp, "AT+FTPPW=\"%s\"\r\n", GSM.ConfigFlash.password);
 	  				UartSend(ATcmdFtp);
 	  				TaskState = 9;
@@ -496,7 +564,6 @@ void CommStateMachineTask(void)
 	  				TaskState = 10;
 	  				break;
 	  			case 10:
-//	  				UartSend("AT+FTPPUTPATH=\"/czujnik/\"\r\n");
 	  				sprintf(ATcmdFtp, "AT+FTPPUTPATH=\"%s\"\r\n", GSM.ConfigFlash.path);
 	  				UartSend(ATcmdFtp);
 	  				TaskState = 11;
@@ -554,15 +621,18 @@ void CDC_ReveiveCallback(uint8_t *Buffer, uint8_t Length)
 			volatile uint8_t i = 0;
 			while(i < Length)
 			{
+				if(Buffer[i] != '\r')
+				{
 					if (RB_OK == Ring_Buffer_Write(&USBConfBuffer, Buffer[i]))
 					{
 						if(Buffer[i] == ENDLINE)
 						{
 							USBLineCounter++;
 						}
-
-				i++;
+						i++;
+					}
 				}
+				else i++;
 			}
 		}
 

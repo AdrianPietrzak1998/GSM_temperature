@@ -11,8 +11,6 @@
 #define ENDLINE '\n'
 
 extern double SignalQuality;
-//extern uint8_t ReceivedState;
-//extern uint8_t CRegN, CRegStat;
 
 extern uint8_t year, month, day, hour, minute, second;
 
@@ -20,6 +18,8 @@ extern uint8_t year, month, day, hour, minute, second;
 
 extern SMSUartTxState_t SMSUartTxState;
 extern GSM_t GSM;
+
+extern char SMSMessage[140];
 
 extern char testlogin[50];
 

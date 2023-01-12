@@ -78,9 +78,18 @@ void Parser_parse(uint8_t * DataToParse)
 	{
 		GSM.ReceivedState = 1;
 	}
-	else if(strcmp("save\r", (char*)DataToParse) == 0)
+	else if(strcmp("save", (char*)DataToParse) == 0)
 	{
 		Flash_Write_Data(0x0801FC00, GSM.FlashBuff, 128);
+	}
+	else if(strcmp("log", (char*)DataToParse) == 0)
+	{
+		sprintf(SMSMessage, "CSQ: %.1f", GSM.SignalQuality);
+		SMSUartTxState = SMSMsgWrite;
+	}
+	else if(strcmp("ERROR", (char*)DataToParse) == 0)
+	{
+		GSM.ErrorCounter++;
 	}
 	else
 	{
@@ -97,10 +106,6 @@ void Parser_parse(uint8_t * DataToParse)
 		else if(strcmp("+CCLK:", ParsePointer) == 0)
 		{
 			Parser_ParseCCLK();
-		}
-		else if(strcmp("Test2", ParsePointer) == 0)
-		{
-			SMSUartTxState = SMSMsgWrite;
 		}
 		else if(strcmp("login:", ParsePointer) == 0)
 		{
@@ -126,6 +131,16 @@ void Parser_parse(uint8_t * DataToParse)
 		{
 			ParsePointer = strtok(NULL, "\r");
 			strcpy(GSM.ConfigFlash.deviceNumber, ParsePointer);
+		}
+		else if(strcmp("number1:", ParsePointer) == 0)
+		{
+			ParsePointer = strtok(NULL, "\r");
+			strcpy(GSM.ConfigFlash.number1, ParsePointer);
+		}
+		else if(strcmp("number2:", ParsePointer) == 0)
+		{
+			ParsePointer = strtok(NULL, "\r");
+			strcpy(GSM.ConfigFlash.number2, ParsePointer);
 		}
 	}
 
