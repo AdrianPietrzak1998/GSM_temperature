@@ -52,6 +52,13 @@ typedef struct {
 	double SignalQuality;
 	uint8_t ReceivedState;
 	uint8_t CRegN, CRegStat;
+	struct FtpPut
+	{
+		uint8_t mode;
+		uint8_t status;
+		uint16_t maxLength;
+		uint16_t CnfLength;
+	}FtpPut;
 
 	union
 	{
@@ -65,6 +72,7 @@ typedef struct {
 			char number1[16];
 			char number2[16];
 			char deviceNumber[5];
+			char apn[32];
 		}ConfigFlash;
 	};
 	uint8_t ErrorCounter;

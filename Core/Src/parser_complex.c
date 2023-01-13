@@ -70,6 +70,26 @@ static void Parser_ParseCCLK(void)
 	second = atoi(ParsePointer);
 }
 
+static void Parser_ParseFTPPUT(void)
+{
+	char * ParsePointer = strtok(NULL, ",");
+	GSM.FtpPut.mode = atoi(ParsePointer);
+	ParsePointer = strtok(NULL, ",");
+	if(GSM.FtpPut.mode == 1)
+	{
+		GSM.FtpPut.status = atoi(ParsePointer);
+		if(GSM.FtpPut.status == 1)
+		{
+			ParsePointer = strtok(NULL, ",");
+			GSM.FtpPut.maxLength = atoi(ParsePointer);
+		}
+	}
+	else if(GSM.FtpPut.mode == 2)
+	{
+		GSM.FtpPut.CnfLength = atoi(ParsePointer);
+	}
+}
+
 
 void Parser_parse(uint8_t * DataToParse)
 {
@@ -107,6 +127,10 @@ void Parser_parse(uint8_t * DataToParse)
 		{
 			Parser_ParseCCLK();
 		}
+		else if(strcmp("+FTPPUT:", ParsePointer) == 0)
+		{
+			Parser_ParseFTPPUT();
+		}
 		else if(strcmp("login:", ParsePointer) == 0)
 		{
 			ParsePointer = strtok(NULL, "\r");
@@ -141,6 +165,11 @@ void Parser_parse(uint8_t * DataToParse)
 		{
 			ParsePointer = strtok(NULL, "\r");
 			strcpy(GSM.ConfigFlash.number2, ParsePointer);
+		}
+		else if(strcmp("apn:", ParsePointer) == 0)
+		{
+			ParsePointer = strtok(NULL, "\r");
+			strcpy(GSM.ConfigFlash.apn, ParsePointer);
 		}
 	}
 

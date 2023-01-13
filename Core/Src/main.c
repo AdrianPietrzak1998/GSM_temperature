@@ -515,7 +515,9 @@ void CommStateMachineTask(void)
 	  				TaskState = 1;
 	  				break;
 	  			case 1:
-	  				UartSend("AT+SAPBR=3,1,\"APN\",\"plus\"\r\n");
+	  				sprintf(ATcmdFtp, "AT+SAPBR=3,1,\"APN\",\"%s\"\r\n", GSM.ConfigFlash.apn);
+//	  				UartSend("AT+SAPBR=3,1,\"APN\",\"plus\"\r\n");
+					UartSend(ATcmdFtp);
 	  				TaskState = 2;
 	  				break;
 	  			case 2:
@@ -559,7 +561,7 @@ void CommStateMachineTask(void)
 	  				TaskState = 9;
 	  				break;
 	  			case 9:
-	  				sprintf(ATcmdFtp, "AT+FTPPUTNAME=\"%s%.2u%.2u%.2u%.2u%.2u%.2u.txt\"\r\n",GSM.ConfigFlash.deviceNumber, year, month, day, hour, minute, second);
+	  				sprintf(ATcmdFtp, "AT+FTPPUTNAME=\"Termo%s%.2u%.2u%.2u%.2u%.2u%.2u.txt\"\r\n",GSM.ConfigFlash.deviceNumber, year, month, day, hour, minute, second);
 	  				UartSend(ATcmdFtp);
 	  				TaskState = 10;
 	  				break;
@@ -574,6 +576,11 @@ void CommStateMachineTask(void)
 	  				TaskState = 12;
 	  				break;
 	  			case 12:
+	  				if(GSM.FtpPut.status != 1)
+	  				{
+	  					TaskState = 0;
+	  					break;
+	  				}
 	  				if(FTPMessageBoxRecordSwitch == 2)
 	  				{
 	  					MsgLen = strlen(FTPMessageBox1);

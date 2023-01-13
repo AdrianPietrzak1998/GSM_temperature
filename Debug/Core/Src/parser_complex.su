@@ -1,2 +1,2 @@
 ../Core/Src/parser_complex.c:18:6:Parser_TakeLine	24	static
-../Core/Src/parser_complex.c:74:6:Parser_parse	16	static
+../Core/Src/parser_complex.c:94:6:Parser_parse	16	static
