@@ -60,6 +60,8 @@ typedef struct {
 		uint16_t CnfLength;
 	}FtpPut;
 
+	char SMSNumber[16];
+
 	union
 	{
 		uint32_t FlashBuff[128];
@@ -77,6 +79,12 @@ typedef struct {
 	};
 	uint8_t ErrorCounter;
 	uint32_t LastTickReceive;
+	struct TaskToDo
+	{
+		uint8_t FtpMsgToSend:1;
+		uint8_t SmsMsgToSend:1;
+	} TaskToDo;
+
 }GSM_t;
 
 /* USER CODE END ET */
@@ -101,6 +109,8 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define LED_Pin GPIO_PIN_13
 #define LED_GPIO_Port GPIOC
+#define BUTTON_Pin GPIO_PIN_14
+#define BUTTON_GPIO_Port GPIOC
 #define GSM_RESET_Pin GPIO_PIN_12
 #define GSM_RESET_GPIO_Port GPIOB
 #define DS18B20_Pin GPIO_PIN_7

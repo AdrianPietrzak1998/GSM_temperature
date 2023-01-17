@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "iwdg.h"
 #include "tim.h"
 #include "usart.h"
 #include "usb_device.h"
@@ -146,6 +147,7 @@ int main(void)
   MX_TIM3_Init();
   MX_USART2_UART_Init();
   MX_USB_DEVICE_Init();
+  MX_IWDG_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
@@ -178,6 +180,8 @@ int main(void)
 
   while (1)
   {
+	  HAL_IWDG_Refresh(&hiwdg);
+
 	  if(HAL_GetTick() - LastTickTempMeasure >= 800)
 	  {
 		  static uint8_t tempMeasureFlag = 0;
@@ -230,6 +234,14 @@ int main(void)
 		  GSM.LastTickReceive = HAL_GetTick();
 	  }
 
+	  if(!HAL_GPIO_ReadPin(BUTTON_GPIO_Port, BUTTON_Pin))
+	  {
+		  sprintf(SMSMessage, "%.1f\n%d\n%s\n%s\n%s", GSM.SignalQuality, GSM.ErrorCounter, GSM.ConfigFlash.apn, GSM.ConfigFlash.path, GSM.ConfigFlash.server);
+		  strcpy(GSM.SMSNumber, GSM.ConfigFlash.number2);
+//		  SMSUartTxState = SMSMsgWrite;
+		  GSM.TaskToDo.SmsMsgToSend = 1;
+	  }
+
 
 
 
@@ -254,10 +266,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
@@ -348,7 +361,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 		if(timPeriodCounter == 42)
 		{
-			SMSUartTxState = FTPMsgWrite;
+//			SMSUartTxState = FTPMsgWrite;
+			GSM.TaskToDo.FtpMsgToSend = 1;
 
 			if(FTPMessageBoxRecordSwitch == 1)
 			{
@@ -391,7 +405,19 @@ void CommStateMachineTask(void)
 	  			case 3:
 	  				UartSend("AT+CCLK?\r\n");
 	  				TaskState = 0;
-	  				SMSUartTxState = Control;
+	  				if(!GSM.TaskToDo.FtpMsgToSend && !GSM.TaskToDo.SmsMsgToSend)
+	  				{
+	  					SMSUartTxState = Control;
+	  				}
+	  				else if(GSM.TaskToDo.FtpMsgToSend)
+	  				{
+	  					SMSUartTxState = FTPMsgWrite;
+	  				}
+	  				else if(GSM.TaskToDo.SmsMsgToSend)
+	  				{
+	  					SMSUartTxState = SMSMsgWrite;
+	  				}
+
 	  				break;
 	  			}
 	  		}
@@ -401,7 +427,7 @@ void CommStateMachineTask(void)
 	  			switch(TaskState)
 	  			{
 	  			case 0:
-	  				inquiryTimeVar = 100;
+	  				inquiryTimeVar = 500;
 	  				HAL_GPIO_WritePin(GSM_RESET_GPIO_Port, GSM_RESET_Pin, RESET);
 	  				TaskState = 1;
 	  				break;
@@ -412,7 +438,7 @@ void CommStateMachineTask(void)
 	  				break;
 	  			case 2:
 	  				inquiryTimeVar = INQUIRY_TIME;
-	  				TaskState = 2;
+	  				TaskState = 0;
 	  				SMSUartTxState = Config;
 	  				break;
 	  			}
@@ -447,7 +473,7 @@ void CommStateMachineTask(void)
 	  			switch(TaskState)
 	  			{
 	  			case 0:
-	  				sprintf(ATcmdSMS, "AT+CMGS=\"%s\"\r\n", GSM.ConfigFlash.number2);
+	  				sprintf(ATcmdSMS, "AT+CMGS=\"%s\"\r\n", GSM.SMSNumber);
 //	  				UartSendWoRxCtrl("AT+CMGS=\"+48885447216\"\r\n");
 	  				UartSendWoRxCtrl(ATcmdSMS);
 	  				inquiryTimeVar = 2000;
@@ -466,6 +492,7 @@ void CommStateMachineTask(void)
 	  			case 3:
 	  				inquiryTimeVar = INQUIRY_TIME;
 	  				TaskState = 0;
+	  				GSM.TaskToDo.SmsMsgToSend = 0;
 	  				SMSUartTxState = Control;
 	  				break;
 	  			}
@@ -497,8 +524,12 @@ void CommStateMachineTask(void)
 	  				break;
 	  			case 5:
 	  				UartSend("AT&W\r\n");
-	  				TaskState = 0;
+	  				TaskState = 6;
 	  				SMSUartTxState = Start;
+	  				break;
+	  			case 6:
+	  				UartSend("AT+CMGDA=\"DEL ALL\"\r\n");
+	  				TaskState = 0;
 	  				break;
 	  			}
 	  		}
@@ -611,6 +642,7 @@ void CommStateMachineTask(void)
 	  			case 15:
 	  				UartSend("AT+SAPBR=0,1\r\n");
 	  				TaskState = 0;
+	  				GSM.TaskToDo.FtpMsgToSend = 0;
 	  				SMSUartTxState = Control;
 	  				inquiryTimeVar = INQUIRY_TIME;
 	  				break;

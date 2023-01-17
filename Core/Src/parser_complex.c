@@ -105,7 +105,12 @@ void Parser_parse(uint8_t * DataToParse)
 	else if(strcmp("log", (char*)DataToParse) == 0)
 	{
 		sprintf(SMSMessage, "CSQ: %.1f", GSM.SignalQuality);
-		SMSUartTxState = SMSMsgWrite;
+		GSM.TaskToDo.SmsMsgToSend = 1;
+	}
+	else if(strcmp("reset", (char*)DataToParse) == 0)
+	{
+		SMSUartTxState = Reset;
+//		HAL_NVIC_SystemReset();
 	}
 	else if(strcmp("ERROR", (char*)DataToParse) == 0)
 	{
@@ -130,6 +135,11 @@ void Parser_parse(uint8_t * DataToParse)
 		else if(strcmp("+FTPPUT:", ParsePointer) == 0)
 		{
 			Parser_ParseFTPPUT();
+		}
+		else if(strcmp("+CMT:", ParsePointer) == 0)
+		{
+			ParsePointer = strtok(NULL, "\"");
+			strcpy(GSM.SMSNumber,ParsePointer);
 		}
 		else if(strcmp("login:", ParsePointer) == 0)
 		{
