@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "iwdg.h"
 #include "tim.h"
 #include "usart.h"
 #include "usb_device.h"
@@ -43,7 +42,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define INQUIRY_TIME 250
+#define INQUIRY_TIME 140
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -72,9 +71,6 @@ uint32_t LastTickTempMeasure;
 
 
 
-char testlogin[50];
-
-
 
 //time variables
 uint8_t year, month, day, hour, minute, second;
@@ -91,7 +87,7 @@ GSM_t GSM;
 uint8_t timPeriodCounter = 0;
 uint16_t inquiryTimeVar = INQUIRY_TIME;
 
-char SMSMessage[140];
+char SMSMessage[SMS_SIZE];
 char FTPMessageBox1[1330];
 char FTPMessageBox2[1330];
 uint8_t FTPMessageBoxRecordSwitch = 1;
@@ -147,7 +143,6 @@ int main(void)
   MX_TIM3_Init();
   MX_USART2_UART_Init();
   MX_USB_DEVICE_Init();
-  MX_IWDG_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
@@ -180,7 +175,7 @@ int main(void)
 
   while (1)
   {
-	  HAL_IWDG_Refresh(&hiwdg);
+//	  HAL_IWDG_Refresh(&hiwdg);
 
 	  if(HAL_GetTick() - LastTickTempMeasure >= 800)
 	  {
@@ -238,10 +233,11 @@ int main(void)
 	  {
 		  sprintf(SMSMessage, "%.1f\n%d\n%s\n%s\n%s", GSM.SignalQuality, GSM.ErrorCounter, GSM.ConfigFlash.apn, GSM.ConfigFlash.path, GSM.ConfigFlash.server);
 		  strcpy(GSM.SMSNumber, GSM.ConfigFlash.number2);
-//		  SMSUartTxState = SMSMsgWrite;
 		  GSM.TaskToDo.SmsMsgToSend = 1;
 	  }
 
+	  if(GSM.CRegStat == 2)
+		  SMSUartTxState = Start;
 
 
 
@@ -266,11 +262,10 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
@@ -413,7 +408,7 @@ void CommStateMachineTask(void)
 	  				{
 	  					SMSUartTxState = FTPMsgWrite;
 	  				}
-	  				else if(GSM.TaskToDo.SmsMsgToSend)
+	  				else if(GSM.TaskToDo.SmsMsgToSend && !GSM.TaskToDo.FtpMsgToSend)
 	  				{
 	  					SMSUartTxState = SMSMsgWrite;
 	  				}
@@ -459,11 +454,17 @@ void CommStateMachineTask(void)
 	  					inquiryTimeVar = INQUIRY_TIME;
 	  					TaskState = 0;
 	  					SMSUartTxState = Control;
+	  					GSM.ResetCounter++;
 	  				}
 	  				else
 	  				{
 	  					TaskState = 0;
 	  				}
+	  				break;
+//	  			case 2:
+//	  				UartSend("AT+CMGDA=\"DEL ALL\"\r\n");
+//	  				TaskState = 0;
+//	  				break;
 	  			}
 	  		}
 	  		else if(SMSUartTxState == SMSMsgWrite)
@@ -515,7 +516,7 @@ void CommStateMachineTask(void)
 	  				TaskState = 3;
 	  				break;
 	  			case 3:
-	  				UartSend("AT+CNMI=2,2,0,0,0\r\n");
+	  				UartSend("AT+CNMI=0,0,0,0,0\r\n");
 	  				TaskState = 4;
 	  				break;
 	  			case 4:
@@ -524,12 +525,8 @@ void CommStateMachineTask(void)
 	  				break;
 	  			case 5:
 	  				UartSend("AT&W\r\n");
-	  				TaskState = 6;
-	  				SMSUartTxState = Start;
-	  				break;
-	  			case 6:
-	  				UartSend("AT+CMGDA=\"DEL ALL\"\r\n");
 	  				TaskState = 0;
+	  				SMSUartTxState = Start;
 	  				break;
 	  			}
 	  		}

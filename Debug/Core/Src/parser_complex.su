@@ -1,2 +1,7 @@
+../Core/Src/parser_complex.c:93:13:Parser_ParseCMGL	16	static
+../Core/Src/parser_complex.c:42:13:Parser_ParseCSQ	8	static
+../Core/Src/parser_complex.c:49:13:Parser_ParseCREG	16	static
+../Core/Src/parser_complex.c:57:13:Parser_ParseCCLK	8	static
+../Core/Src/parser_complex.c:73:13:Parser_ParseFTPPUT	16	static
 ../Core/Src/parser_complex.c:18:6:Parser_TakeLine	24	static
-../Core/Src/parser_complex.c:94:6:Parser_parse	16	static
+../Core/Src/parser_complex.c:103:6:Parser_parse	48	static

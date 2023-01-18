@@ -90,6 +90,15 @@ static void Parser_ParseFTPPUT(void)
 	}
 }
 
+static void Parser_ParseCMGL(void)
+{
+	char *ParsePointer = strtok(NULL, "\"");
+	ParsePointer = strtok(NULL, "\"");
+	ParsePointer = strtok(NULL, ",") +1;
+	strtok(ParsePointer, "\"");
+	strcpy(GSM.SMSNumber,ParsePointer);
+}
+
 
 void Parser_parse(uint8_t * DataToParse)
 {
@@ -102,15 +111,26 @@ void Parser_parse(uint8_t * DataToParse)
 	{
 		Flash_Write_Data(0x0801FC00, GSM.FlashBuff, 128);
 	}
-	else if(strcmp("log", (char*)DataToParse) == 0)
+	else if(strcmp("Log", (char*)DataToParse) == 0)
 	{
-		sprintf(SMSMessage, "CSQ: %.1f", GSM.SignalQuality);
+		sprintf(SMSMessage, "CSQ:%.1f\nERROR:%d\n%d\nAPN:%s\n%s\n%s", GSM.SignalQuality, GSM.ErrorCounter, GSM.ResetCounter, GSM.ConfigFlash.apn, GSM.ConfigFlash.path, GSM.ConfigFlash.server);
 		GSM.TaskToDo.SmsMsgToSend = 1;
 	}
-	else if(strcmp("reset", (char*)DataToParse) == 0)
+	else if(strcmp("Temp", (char*)DataToParse) == 0)
+	{
+		char TemperatureString[7];
+		Temperature100ToString(temperature, TemperatureString);
+		sprintf(SMSMessage, "Temperature: %s", TemperatureString);
+		GSM.TaskToDo.SmsMsgToSend = 1;
+	}
+	else if(strcmp("ResetGsm", (char*)DataToParse) == 0)
 	{
 		SMSUartTxState = Reset;
-//		HAL_NVIC_SystemReset();
+
+	}
+	else if(strcmp("ResetUc", (char*)DataToParse) == 0)
+	{
+		HAL_NVIC_SystemReset();
 	}
 	else if(strcmp("ERROR", (char*)DataToParse) == 0)
 	{
@@ -136,10 +156,9 @@ void Parser_parse(uint8_t * DataToParse)
 		{
 			Parser_ParseFTPPUT();
 		}
-		else if(strcmp("+CMT:", ParsePointer) == 0)
+		else if(strcmp("+CMGL:", ParsePointer) == 0)
 		{
-			ParsePointer = strtok(NULL, "\"");
-			strcpy(GSM.SMSNumber,ParsePointer);
+			Parser_ParseCMGL();
 		}
 		else if(strcmp("login:", ParsePointer) == 0)
 		{

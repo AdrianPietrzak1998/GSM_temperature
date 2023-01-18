@@ -85,6 +85,8 @@ typedef struct {
 		uint8_t SmsMsgToSend:1;
 	} TaskToDo;
 
+	uint16_t ResetCounter;
+
 }GSM_t;
 
 /* USER CODE END ET */
@@ -117,7 +119,7 @@ void Error_Handler(void);
 #define DS18B20_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
-
+#define SMS_SIZE 240
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
