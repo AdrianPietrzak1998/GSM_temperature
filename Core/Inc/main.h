@@ -115,8 +115,6 @@ void Error_Handler(void);
 #define BUTTON_GPIO_Port GPIOC
 #define GSM_RESET_Pin GPIO_PIN_12
 #define GSM_RESET_GPIO_Port GPIOB
-#define DS18B20_Pin GPIO_PIN_7
-#define DS18B20_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 #define SMS_SIZE 240

@@ -9,6 +9,7 @@ C_SRCS += \
 ../Core/Src/FlASH_PAGE_F1.c \
 ../Core/Src/ds18b20.c \
 ../Core/Src/gpio.c \
+../Core/Src/iwdg.c \
 ../Core/Src/main.c \
 ../Core/Src/parser_complex.c \
 ../Core/Src/ring_buffer.c \
@@ -26,6 +27,7 @@ OBJS += \
 ./Core/Src/FlASH_PAGE_F1.o \
 ./Core/Src/ds18b20.o \
 ./Core/Src/gpio.o \
+./Core/Src/iwdg.o \
 ./Core/Src/main.o \
 ./Core/Src/parser_complex.o \
 ./Core/Src/ring_buffer.o \
@@ -43,6 +45,7 @@ C_DEPS += \
 ./Core/Src/FlASH_PAGE_F1.d \
 ./Core/Src/ds18b20.d \
 ./Core/Src/gpio.d \
+./Core/Src/iwdg.d \
 ./Core/Src/main.d \
 ./Core/Src/parser_complex.d \
 ./Core/Src/ring_buffer.d \
@@ -63,7 +66,7 @@ Core/Src/%.o Core/Src/%.su: ../Core/Src/%.c Core/Src/subdir.mk
 clean: clean-Core-2f-Src
 
 clean-Core-2f-Src:
-	-$(RM) ./Core/Src/1wire.d ./Core/Src/1wire.o ./Core/Src/1wire.su ./Core/Src/FlASH_PAGE_F1.d ./Core/Src/FlASH_PAGE_F1.o ./Core/Src/FlASH_PAGE_F1.su ./Core/Src/ds18b20.d ./Core/Src/ds18b20.o ./Core/Src/ds18b20.su ./Core/Src/gpio.d ./Core/Src/gpio.o ./Core/Src/gpio.su ./Core/Src/main.d ./Core/Src/main.o ./Core/Src/main.su ./Core/Src/parser_complex.d ./Core/Src/parser_complex.o ./Core/Src/parser_complex.su ./Core/Src/ring_buffer.d ./Core/Src/ring_buffer.o ./Core/Src/ring_buffer.su ./Core/Src/stm32f1xx_hal_msp.d ./Core/Src/stm32f1xx_hal_msp.o ./Core/Src/stm32f1xx_hal_msp.su ./Core/Src/stm32f1xx_it.d ./Core/Src/stm32f1xx_it.o ./Core/Src/stm32f1xx_it.su ./Core/Src/syscalls.d ./Core/Src/syscalls.o ./Core/Src/syscalls.su ./Core/Src/sysmem.d ./Core/Src/sysmem.o ./Core/Src/sysmem.su ./Core/Src/system_stm32f1xx.d ./Core/Src/system_stm32f1xx.o ./Core/Src/system_stm32f1xx.su ./Core/Src/tim.d ./Core/Src/tim.o ./Core/Src/tim.su ./Core/Src/usart.d ./Core/Src/usart.o ./Core/Src/usart.su ./Core/Src/utils.d ./Core/Src/utils.o ./Core/Src/utils.su
+	-$(RM) ./Core/Src/1wire.d ./Core/Src/1wire.o ./Core/Src/1wire.su ./Core/Src/FlASH_PAGE_F1.d ./Core/Src/FlASH_PAGE_F1.o ./Core/Src/FlASH_PAGE_F1.su ./Core/Src/ds18b20.d ./Core/Src/ds18b20.o ./Core/Src/ds18b20.su ./Core/Src/gpio.d ./Core/Src/gpio.o ./Core/Src/gpio.su ./Core/Src/iwdg.d ./Core/Src/iwdg.o ./Core/Src/iwdg.su ./Core/Src/main.d ./Core/Src/main.o ./Core/Src/main.su ./Core/Src/parser_complex.d ./Core/Src/parser_complex.o ./Core/Src/parser_complex.su ./Core/Src/ring_buffer.d ./Core/Src/ring_buffer.o ./Core/Src/ring_buffer.su ./Core/Src/stm32f1xx_hal_msp.d ./Core/Src/stm32f1xx_hal_msp.o ./Core/Src/stm32f1xx_hal_msp.su ./Core/Src/stm32f1xx_it.d ./Core/Src/stm32f1xx_it.o ./Core/Src/stm32f1xx_it.su ./Core/Src/syscalls.d ./Core/Src/syscalls.o ./Core/Src/syscalls.su ./Core/Src/sysmem.d ./Core/Src/sysmem.o ./Core/Src/sysmem.su ./Core/Src/system_stm32f1xx.d ./Core/Src/system_stm32f1xx.o ./Core/Src/system_stm32f1xx.su ./Core/Src/tim.d ./Core/Src/tim.o ./Core/Src/tim.su ./Core/Src/usart.d ./Core/Src/usart.o ./Core/Src/usart.su ./Core/Src/utils.d ./Core/Src/utils.o ./Core/Src/utils.su
 
 .PHONY: clean-Core-2f-Src
 

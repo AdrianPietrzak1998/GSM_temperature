@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "iwdg.h"
 #include "tim.h"
 #include "usart.h"
 #include "usb_device.h"
@@ -143,6 +144,7 @@ int main(void)
   MX_TIM3_Init();
   MX_USART2_UART_Init();
   MX_USB_DEVICE_Init();
+  MX_IWDG_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
@@ -175,7 +177,7 @@ int main(void)
 
   while (1)
   {
-//	  HAL_IWDG_Refresh(&hiwdg);
+	  HAL_IWDG_Refresh(&hiwdg);
 
 	  if(HAL_GetTick() - LastTickTempMeasure >= 800)
 	  {
@@ -232,7 +234,7 @@ int main(void)
 	  if(!HAL_GPIO_ReadPin(BUTTON_GPIO_Port, BUTTON_Pin))
 	  {
 		  sprintf(SMSMessage, "%.1f\n%d\n%s\n%s\n%s", GSM.SignalQuality, GSM.ErrorCounter, GSM.ConfigFlash.apn, GSM.ConfigFlash.path, GSM.ConfigFlash.server);
-		  strcpy(GSM.SMSNumber, GSM.ConfigFlash.number2);
+		  strcpy(GSM.SMSNumber, GSM.ConfigFlash.number1);
 		  GSM.TaskToDo.SmsMsgToSend = 1;
 	  }
 
@@ -262,10 +264,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
@@ -600,7 +603,7 @@ void CommStateMachineTask(void)
 	  				break;
 	  			case 11:
 	  				UartSend("AT+FTPPUT=1\r\n");
-	  				inquiryTimeVar = 4000;
+	  				inquiryTimeVar = 5000;
 	  				TaskState = 12;
 	  				break;
 	  			case 12:
