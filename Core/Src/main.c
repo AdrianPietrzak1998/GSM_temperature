@@ -43,7 +43,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define INQUIRY_TIME 140
+#define INQUIRY_TIME 200
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -357,7 +357,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		}
 
 
-		if(timPeriodCounter == 42)
+		if(timPeriodCounter == 40)
 		{
 //			SMSUartTxState = FTPMsgWrite;
 			GSM.TaskToDo.FtpMsgToSend = 1;
@@ -397,10 +397,14 @@ void CommStateMachineTask(void)
 	  				TaskState = 2;
 	  				break;
 	  			case 2:
-	  				 UartSend("AT+CMGL=\"REC UNREAD\",0\r\n");
-	  				 TaskState = 3;
-	  				 break;
+	  				UartSend("AT+CMGDA=\"DEL READ\"\r\n");
+	  				TaskState = 3;
+	  				break;
 	  			case 3:
+	  				 UartSend("AT+CMGL=\"REC UNREAD\",0\r\n");
+	  				 TaskState = 4;
+	  				 break;
+	  			case 4:
 	  				UartSend("AT+CCLK?\r\n");
 	  				TaskState = 0;
 	  				if(!GSM.TaskToDo.FtpMsgToSend && !GSM.TaskToDo.SmsMsgToSend)
@@ -565,6 +569,7 @@ void CommStateMachineTask(void)
 	  				{
 	  					TaskState = 0;
 	  					UartSend("AT+SAPBR=0,1\r\n");
+
 	  				}
 	  				break;
 	  			case 4:
