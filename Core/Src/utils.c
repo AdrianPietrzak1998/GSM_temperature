@@ -46,5 +46,5 @@ void Temperature100ToString(int32_t temp, char *StringBuf)
 		Fractial = (temp * -1) - ((Decimal * -1) * 100);
 	}
 
-	sprintf(StringBuf, "%.2i.%.2u", Decimal, Fractial);
+	sprintf(StringBuf, "%i.%.2u", Decimal, Fractial);
 }
